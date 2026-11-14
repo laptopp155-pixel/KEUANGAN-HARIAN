@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Keuangan Harian</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+  --bg:#070b14; --bg2:#0a0f1c; --panel:rgba(16,24,42,.78); --panel-br:rgba(120,180,255,.24);
+  --tx:#e8f1ff; --mu:#8694b0; --line:rgba(140,190,255,.15);
+  --cy:#49e8ff; --vi:#b36bff; --ok:#3df5b8; --bad:#ff5d7a; --warn:rgba(255,190,70,.14); --warn-bd:rgba(255,190,70,.35);
+  --sans:'Space Grotesk',system-ui,sans-serif; --mono:'JetBrains Mono',ui-monospace,monospace;
+  color-scheme:dark;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:var(--sans);line-height:1.5;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+
+#bg{position:fixed;inset:0;z-index:0;background:
+  radial-gradient(ellipse 80% 55% at 18% -8%, rgba(73,232,255,.16), transparent 60%),
+  radial-gradient(ellipse 70% 50% at 100% 10%, rgba(179,107,255,.14), transparent 60%),
+  linear-gradient(180deg,var(--bg) 0%,var(--bg2) 100%);
+}
+#video-bg{
+  position:fixed;inset:0;width:100%;height:100%;
+  object-fit:cover;object-position:center;
+  z-index:0;display:none;opacity:1;image-rendering:auto;
+  -webkit-backface-visibility:hidden;backface-visibility:hidden;
+}
+#video-overlay{position:fixed;inset:0;z-index:0;background:rgba(5,8,15,0.05);pointer-events:none;display:none}
+#grid{position:fixed;inset:0;z-index:0;opacity:.15;pointer-events:none;
+  background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+  background-size:44px 44px; mask-image:radial-gradient(ellipse 85% 70% at 50% 0%,#000 40%,transparent 85%);}
+#scan{position:fixed;left:0;right:0;height:140px;z-index:0;pointer-events:none;
+  background:linear-gradient(180deg,transparent,rgba(73,232,255,.02),transparent);
+  animation:scanmove 9s linear infinite;}
+@keyframes scanmove{0%{top:-140px}100%{top:100vh}}
+canvas#net{position:fixed;inset:0;z-index:0;pointer-events:none}
+@media (prefers-reduced-motion:reduce){#scan{animation:none;display:none}canvas#net{display:none}}
+
+.float-bg-container{position:fixed;top:16px;right:16px;z-index:1000;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.float-btn{background:var(--panel);border:1px solid var(--panel-br);color:var(--cy);padding:8px 12px;border-radius:10px;font:600 13px var(--sans);cursor:pointer;backdrop-filter:blur(12px);box-shadow:0 4px 12px rgba(0,0,0,.4);display:flex;align-items:center;gap:6px;transition:all .2s}
+.float-btn:hover{background:rgba(25,38,65,.85);border-color:var(--cy)}
+.float-btn.ok{color:var(--ok);border-color:rgba(61,245,184,.4)}
+.float-panel{position:absolute;top:46px;right:0;width:280px;background:var(--panel);border:1px solid var(--panel-br);border-radius:14px;padding:14px;backdrop-filter:blur(16px);box-shadow:0 10px 25px rgba(0,0,0,.5);display:none}
+.float-panel.show{display:block}
+.float-panel h3{font-size:14px;margin:0 0 10px;color:var(--tx)}
+
+main{position:relative;z-index:1;max-width:760px;margin:0 auto;padding:22px 16px 60px}
+
+.hero{margin-bottom:18px}
+.hero .tag{font-family:var(--mono);font-size:12px;color:var(--cy);letter-spacing:.02em;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--cy);box-shadow:0 0 10px 2px var(--cy);animation:pulse 2.2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+h1{font-size:28px;font-weight:700;margin:0 0 4px;letter-spacing:-.01em;
+  background:linear-gradient(100deg,#fff 20%,var(--cy) 55%,var(--vi) 90%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p{margin:0;color:var(--mu);font-size:14px;max-width:46ch}
+
+h2{font-size:15px;margin:0 0 12px;font-weight:600;color:var(--tx)}
+
+.card{position:relative;background:var(--panel);border:1px solid var(--panel-br);border-radius:16px;padding:18px;margin-bottom:16px;
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  box-shadow:0 1px 0 rgba(255,255,255,.06) inset, 0 20px 40px -24px rgba(0,0,0,.5);}
+.card.done{border-color:rgba(255,190,70,.5)}
+
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.stat{position:relative;background:var(--panel);border:1px solid var(--panel-br);border-radius:16px;padding:14px 16px;overflow:hidden;
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+.stat::after{content:"";position:absolute;inset:0;background:linear-gradient(135deg,rgba(73,232,255,.08),transparent 55%);pointer-events:none}
+.stat small{color:var(--mu);display:block;font-size:12px;margin-bottom:4px}
+.stat b{font-family:var(--mono);font-size:19px;font-weight:600;color:var(--tx)}
+.stat.free b{color:var(--cy)}
+
+label{display:block;font-size:12px;color:var(--mu);margin-bottom:5px}
+input, select{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:10px;background:rgba(5,9,18,.75);color:var(--tx);font:500 14px/1.3 var(--mono);transition:border-color .15s,box-shadow .15s}
+input::placeholder{color:#4a5672}
+input:focus, select:focus{outline:none;border-color:var(--cy);box-shadow:0 0 0 3px rgba(73,232,255,.15)}
+select option{background:#0a0f1c;color:#e8f1ff}
+
+button{padding:10px 16px;border:0;border-radius:10px;color:#061018;font:600 14px var(--sans);cursor:pointer;
+  background:linear-gradient(100deg,var(--cy),var(--vi));transition:filter .15s,transform .15s}
+button:hover{filter:brightness(1.08)}
+button:active{transform:translateY(1px)}
+button.g{background:transparent;color:var(--mu);border:1px solid var(--line)}
+button.g:hover{color:var(--tx);border-color:var(--cy)}
+button.excel-btn{background:linear-gradient(100deg,#21a366,#107c41);color:#fff;display:inline-flex;align-items:center;gap:6px}
+button.excel-btn:hover{filter:brightness(1.1)}
+button.warn-btn{background:linear-gradient(100deg,#ffb646,#ff8a3d);color:#1a0e00}
+
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;align-items:end}
+
+.alert{background:var(--warn);border:1px solid var(--warn-bd);border-radius:14px;padding:12px 14px;margin-bottom:16px;display:none;font-size:13.5px}
+
+.item{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 0;border-top:1px solid var(--line);font-size:13.5px}
+.item small{color:var(--mu);font-family:var(--mono);font-size:11px}
+.x{background:none;color:var(--bad);padding:0 6px;font-size:14px}
+
+.wrap{overflow-x:auto;border-radius:12px}
+table{width:100%;border-collapse:collapse;font-size:13px;min-width:560px}
+th,td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+th{color:var(--mu);font-weight:500;font-size:11.5px;letter-spacing:.02em}
+tbody tr{transition:background .15s}
+tbody tr:hover{background:rgba(73,232,255,.06)}
+tr.today{background:linear-gradient(90deg,rgba(73,232,255,.12),rgba(179,107,255,.08))}
+tbody tr td input{width:82px;padding:7px 8px}
+.st{font-family:var(--mono);font-size:12px}.st.bad{color:var(--bad)}.st.ok{color:var(--ok)}
+.dayname{font-weight:600;white-space:nowrap;font-size:13px}.sub{color:var(--cy);font-weight:500;font-size:10.5px;display:block;margin-top:1px}
+
+.flex-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}
+.archive-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line);font-size:13.5px;flex-wrap:wrap}
+.archive-row .ar-actions{display:flex;gap:8px}
+.archive-row button{padding:6px 10px;font-size:12.5px}
+
+.hide{display:none}
+::selection{background:rgba(73,232,255,.3)}
+</style>
+</head>
+<body>
+<div id="bg"></div>
+<video id="video-bg" autoplay loop muted playsinline></video>
+<div id="video-overlay"></div>
+<div id="grid"></div>
+<div id="scan"></div>
+<canvas id="net"></canvas>
+
+<div class="float-bg-container">
+  <button id="toggleBgPanel" class="float-btn">⚙️ Tema BG</button>
+  <div id="bgPanel" class="float-panel">
+    <h3>Pilih Background</h3>
+    <div style="margin-bottom:10px">
+      <label for="bgSelect">Daftar Video</label>
+      <select id="bgSelect" style="margin-top:4px">
+        <option value="default">Default (Canvas)</option>
+        <option value="videos/gojo1.mp4">Background 1</option>
+        <option value="videos/sasuke2.mp4">Background 2</option>
+      </select>
+    </div>
+    <button id="saveBg" style="width:100%;padding:8px">Terapkan</button>
+  </div>
+
+  <button id="toggleSyncPanel" class="float-btn">🔗 Sync</button>
+  <div id="syncPanel" class="float-panel">
+    <h3>Sinkronisasi Antar Perangkat</h3>
+    <div id="syncStatus" style="font-size:12px;color:var(--mu);margin-bottom:10px">Belum tersambung.</div>
+    <div style="margin-bottom:10px">
+      <label for="syncCodeInput">Kode Sinkronisasi</label>
+      <input id="syncCodeInput" type="text" placeholder="misal: hengky-keuangan-2026">
+    </div>
+    <div style="display:flex;gap:8px">
+      <button id="syncConnect" style="flex:1;padding:8px">Hubungkan</button>
+      <button id="syncDisconnect" class="g" style="flex:1;padding:8px">Putuskan</button>
+    </div>
+    <p style="font-size:11px;color:var(--mu);margin:10px 0 0">Pakai kode yang SAMA PERSIS di semua perangkat (HP & laptop) supaya datanya otomatis sama.</p>
+  </div>
+</div>
+
+<main>
+  <div class="hero">
+    <div class="tag"><span class="dot"></span>SISTEM KEUANGAN ON</div>
+    <h1>Keuangan Harian</h1>
+    <p>Lacak makan, jajan, dan uang free kamu secara real-time. Data tersimpan di perangkat ini, dan bisa disinkronkan ke perangkat lain.</p>
+  </div>
+
+<div id="alert" class="alert" role="alert"></div>
+
+<section id="setup" class="card hide">
+  <h2 id="setupTitle">Mulai</h2>
+  <p id="setupDesc" style="margin-top:0;margin-bottom:14px;color:var(--mu);font-size:13.5px">Masukkan uang kamu sekarang. Dihitung dari hari ini sampai akhir bulan, sisanya masuk Uang Free.</p>
+  <div class="row">
+    <div><label for="bal">Uang sekarang (Rp)</label><input id="bal" type="number" inputmode="numeric" min="0" placeholder="0"></div>
+    <button id="go">Mulai hitung</button>
+  </div>
+</section>
+
+<section id="app" class="hide">
+  <div class="stats">
+    <div class="stat free"><small>Uang Free</small><b id="sFree">-</b></div>
+    <div class="stat"><small>Sisa saldo</small><b id="sBal">-</b></div>
+    <div class="stat"><small>Sisa hari bulan ini</small><b id="sDays">-</b></div>
+  </div>
+  <div id="warn" class="alert"></div>
+
+  <div id="doneCard" class="card done hide">
+    <h2>📅 Bulan Ini Sudah Berakhir</h2>
+    <p style="margin-top:0;margin-bottom:14px;color:var(--mu);font-size:13.5px">Data bulan ini masih aman dan belum hilang. Unduh dulu kalau perlu, baru lanjut ke bulan berikutnya — saat itu data bulan ini otomatis dipindah ke Riwayat dan sisa Uang Free dibawa ke bulan baru.</p>
+    <div class="flex-actions">
+      <button id="downloadExcelDone" class="excel-btn">Unduh Excel Bulan Ini</button>
+      <button id="nextMonth" class="warn-btn">Lanjut ke Bulan Berikutnya →</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Pakai Uang Free</h2>
+    <div class="row">
+      <div><label for="bn">Nama barang</label><input id="bn" type="text" placeholder="mis. kuota internet"></div>
+      <div><label for="ba">Harga (Rp)</label><input id="ba" type="number" inputmode="numeric" min="0" placeholder="0"></div>
+      <button id="buy">Beli</button>
+    </div>
+    <div id="buys"></div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:8px">
+      <h2>Catatan harian</h2>
+      <button id="downloadExcel" class="excel-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Unduh Data (.xlsx)
+      </button>
+    </div>
+    <p style="margin-top:0;margin-bottom:14px;color:var(--mu);font-size:13px">Jatah per hari: Rp 40.000 untuk makan siang + makan malam + jajan. Lebih dari jatah memotong jatah besok; kurang dari jatah menambah jatah besok. Sisa di hari terakhir otomatis masuk Uang Free.</p>
+    <div class="wrap"><table><thead><tr><th>Tanggal</th><th>Makan siang</th><th>Makan malam</th><th>Jajan</th><th>Status</th></tr></thead><tbody id="days"></tbody></table></div>
+  </div>
+
+  <div id="archiveCard" class="card hide">
+    <h2>🗂️ Riwayat Bulan Lalu</h2>
+    <div id="archiveList"></div>
+  </div>
+
+  <button class="g" id="reset">Reset semua data (hapus total)</button>
+</section>
+</main>
+
+<!-- Firebase App (Compat) dan Firestore (Compat) via CDN Google -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<script>
+  try {
+    const firebaseConfig = {
+      apiKey: "AIzaSyBb3YC72CYQp83ed7e7f251uDcsx04SMws",
+      authDomain: "keuangan-harian-hengky.firebaseapp.com",
+      projectId: "keuangan-harian-hengky",
+      storageBucket: "keuangan-harian-hengky.firebasestorage.app",
+      messagingSenderId: "503118234969",
+      appId: "1:503118234969:web:90c45e19f8625c1211f848"
+    };
+
+    // Inisialisasi Firebase menggunakan SDK Compat
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    let unsub = null;
+
+    window.fbGetOnce = async (code) => {
+      const snap = await db.collection("keuangan_sync").doc(code).get();
+      return snap.exists ? snap.data().state : null;
+    };
+
+    window.fbSave = async (code, dataObj) => {
+      try { 
+        await db.collection("keuangan_sync").doc(code).set({ state: dataObj, updatedAt: Date.now() }); 
+      } catch (e) { 
+        console.warn("fbSave error", e); 
+        window.fbLastError = e; 
+      }
+    };
+
+    window.fbListen = (code, cb, onErr) => {
+      if (unsub) unsub();
+      unsub = db.collection("keuangan_sync").doc(code).onSnapshot(
+        (snap) => { if (snap.exists) cb(snap.data().state, snap.data().updatedAt); },
+        (err) => { console.warn("listen error", err); if (onErr) onErr(err); }
+      );
+    };
+
+    window.fbStop = () => { if (unsub) { unsub(); unsub = null; } };
+    window.fbReady = true;
+  } catch (e) {
+    window.fbError = e;
+    console.error("Firebase gagal dimuat:", e);
+  }
+</script>
+
+<script>
+const KEY="keuangan_v1",SYNC_KEY="keuangan_sync_code",DAILY=40000;
+let S=load();
+let syncCode=localStorage.getItem(SYNC_KEY)||"";
+let applyingRemote=false;
+const $=id=>document.getElementById(id);
+const rp=n=>(n<0?"-":"")+"Rp "+Math.abs(Math.round(n)).toLocaleString("id-ID");
+
+function load(){try{return JSON.parse(localStorage.getItem(KEY))||null}catch(e){return null}}
+function save(){
+  try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}
+  if(syncCode && !applyingRemote && window.fbSave) window.fbSave(syncCode,S);
+}
+function iso(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function dayList(start){const [y,m,d]=start.split("-").map(Number);const last=new Date(y,m,0).getDate();const a=[];for(let i=d;i<=last;i++)a.push(iso(new Date(y,m-1,i)));return a}
+function firstOfNextMonth(dt){const [y,m]=dt.split("-").map(Number);return iso(new Date(y,m,1))}
+function show(el,msg){el.textContent=msg;el.style.display="block"}
+function esc(s){return s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function waitFb(){return new Promise((res,rej)=>{const t0=Date.now();const t=setInterval(()=>{if(window.fbReady){clearInterval(t);res()}else if(window.fbError||Date.now()-t0>10000){clearInterval(t);rej(window.fbError||new Error("Timeout memuat Firebase (cek internet / matikan ad blocker)"))}},100)})}
+
+/* ---- Sinkronisasi antar perangkat ---- */
+function updateSyncUI(){
+  $("syncStatus").textContent = syncCode ? `Tersambung sebagai: ${syncCode}` : "Belum tersambung.";
+  $("syncStatus").style.color = syncCode ? "var(--ok)" : "var(--mu)";
+  $("toggleSyncPanel").classList.toggle("ok", !!syncCode);
+  if(syncCode) $("syncCodeInput").value = syncCode;
+}
+async function connectSync(code,silent){
+  code = code.trim();
+  if(!code){ alert("Masukkan kode sinkronisasi dulu."); return; }
+  try{
+    await waitFb();
+    const remote = await window.fbGetOnce(code);
+    syncCode = code;
+    localStorage.setItem(SYNC_KEY, syncCode);
+    if(remote){
+      applyingRemote = true;
+      S = remote;
+      try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}
+      applyingRemote = false;
+    } else {
+      await window.fbSave(syncCode, S);
+    }
+    window.fbListen(syncCode, (remoteS)=>{
+      applyingRemote = true;
+      S = remoteS;
+      try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}
+      render();
+      applyingRemote = false;
+    }, (err)=>{
+      $("syncStatus").textContent = "Sinkron terputus: " + (err.code || err.message);
+      $("syncStatus").style.color = "var(--bad)";
+    });
+    updateSyncUI();
+    render();
+    if(!silent) alert("Tersambung! Data akan otomatis sama di semua perangkat yang pakai kode ini.");
+  }catch(e){
+    console.error("Sync gagal:", e);
+    const msg = (e && (e.code || e.message)) || String(e);
+    $("syncStatus").textContent = "Gagal tersambung: " + msg;
+    $("syncStatus").style.color = "var(--bad)";
+    if(!silent) alert("Gagal tersambung ke Firebase:\n" + msg + "\n\nBuka Console (F12) untuk detail.");
+  }
+}
+$("syncConnect").onclick=()=>connectSync($("syncCodeInput").value);
+$("syncDisconnect").onclick=()=>{
+  if(!confirm("Putuskan sinkronisasi? Data di perangkat ini tetap aman, hanya berhenti sinkron otomatis."))return;
+  if(window.fbStop) window.fbStop();
+  syncCode="";
+  localStorage.removeItem(SYNC_KEY);
+  updateSyncUI();
+};
+if(syncCode) connectSync(syncCode,true);
+
+/* ---- Panel toggle (bg & sync) ---- */
+$("toggleBgPanel").onclick=(e)=>{e.stopPropagation();$("syncPanel").classList.remove("show");$("bgPanel").classList.toggle("show")};
+$("toggleSyncPanel").onclick=(e)=>{e.stopPropagation();$("bgPanel").classList.remove("show");$("syncPanel").classList.toggle("show")};
+document.addEventListener("click",(e)=>{if(!e.target.closest(".float-bg-container")){$("bgPanel").classList.remove("show");$("syncPanel").classList.remove("show")}});
+
+/* ---- Background ---- */
+function applyBackgroundSettings(){
+  if(!S) S={start:iso(new Date()),balance:0,days:{},buy:[],freeBank:0,archive:[],bgChoice:'default'};
+  const choice=S.bgChoice||'default';
+  $("bgSelect").value=choice;
+  const v=$("video-bg"),vo=$("video-overlay"),cv=$("net"),grid=$("grid"),scan=$("scan");
+  if(choice!=='default'){
+    if(!v.src.endsWith(choice)){v.src=choice;v.load();v.play().catch(e=>console.warn("Video playback restricted:",e))}
+    v.style.display='block';vo.style.display='block';cv.style.display='none';grid.style.display='none';scan.style.display='none';
+  }else{
+    v.pause();v.style.display='none';vo.style.display='none';cv.style.display='block';grid.style.display='block';scan.style.display='block';
+  }
+}
+$("saveBg").onclick=()=>{
+  if(!S) S={start:iso(new Date()),balance:0,days:{},buy:[],freeBank:0,archive:[]};
+  S.bgChoice=$("bgSelect").value;save();applyBackgroundSettings();$("bgPanel").classList.remove("show");
+  alert("Background berhasil diganti dan tersimpan!");
+};
+
+/* ---- Perhitungan budget harian (rolling 40rb/hari) ---- */
+function calc(){
+  const days=dayList(S.start);let carry=0,spent=0;const rows=[];
+  const n=days.length;
+  const init=S.balance-n*DAILY;
+  const freeBase=Math.max(0,init);
+  for(const dt of days){
+    const e=S.days[dt];const eff=DAILY+carry;
+    carry=0;
+    const r={dt,eff,e,over:0,left:0};
+    if(e){
+      const sm=(+e.l||0)+(+e.d||0)+(+e.j||0);spent+=sm;
+      if(sm>eff){r.over=sm-eff;carry=-r.over}
+      else{r.left=eff-sm;carry=r.left}
+    }
+    rows.push(r);
+  }
+  const bought=S.buy?S.buy.reduce((a,b)=>a+b.amt,0):0;
+  const free=freeBase+(S.freeBank||0)+carry-bought;
+  const bal=S.balance-spent-bought;
+  const lastDay=days[days.length-1];
+  const today=iso(new Date());
+  const isDone=today>lastDay;
+  return {rows,free,bal,init,n,lastDay,isDone};
+}
+
+/* ---- Render ---- */
+function render(){
+  const hasStarted=S&&S.balance>0;
+  $("setup").classList.toggle("hide",hasStarted);
+  $("app").classList.toggle("hide",!hasStarted);
+  applyBackgroundSettings();
+  updateSyncUI();
+  renderArchive();
+  if(!hasStarted){
+    $("setupTitle").textContent=(S&&S.freeBank)?"Mulai Bulan Baru":"Mulai";
+    $("setupDesc").textContent=(S&&S.freeBank)?`Uang Free kamu sebesar ${rp(S.freeBank)} sudah dibawa dari bulan sebelumnya. Masukkan uang kamu untuk bulan ini.`:"Masukkan uang kamu sekarang. Dihitung dari hari ini sampai akhir bulan, sisanya masuk Uang Free.";
+    return;
+  }
+
+  const c=calc(),today=iso(new Date());
+  $("sFree").textContent=rp(c.free);$("sBal").textContent=rp(c.bal);
+  const left=c.rows.filter(r=>r.dt>=today).length;$("sDays").textContent=left+" hari";
+  if(c.init<0)show($("warn"),"Uang kamu kurang "+rp(-c.init)+" dari total jatah 40rb/hari sampai akhir bulan.");else $("warn").style.display="none";
+  $("doneCard").classList.toggle("hide",!c.isDone);
+
+  $("days").innerHTML=c.rows.map(r=>{
+    const e=r.e||{};
+    let st=`Jatah ${rp(r.eff)}`,cl="";
+    if(r.e){
+      if(r.over){cl="bad";st=`⚠ Lebih ${rp(r.over)} (besok dipotong)`}
+      else{cl="ok";st=`✓ Sisa ${rp(r.left)} (besok nambah)`}
+    }
+    const nm=new Date(r.dt+"T00:00").toLocaleDateString("id-ID",{weekday:"short",day:"numeric",month:"short"});
+    return `<tr class="${r.dt===today?"today":""}"><td class="dayname">${nm}${r.dt===today?'<span class="sub">Hari ini</span>':""}</td>
+    <td><input type="number" inputmode="numeric" min="0" placeholder="0" data-d="${r.dt}" data-k="l" value="${e.l??""}"></td>
+    <td><input type="number" inputmode="numeric" min="0" placeholder="0" data-d="${r.dt}" data-k="d" value="${e.d??""}"></td>
+    <td><input type="number" inputmode="numeric" min="0" placeholder="0" data-d="${r.dt}" data-k="j" value="${e.j??""}"></td>
+    <td class="st ${cl}">${st}</td></tr>`}).join("");
+  $("buys").innerHTML=(S.buy||[]).slice().reverse().map(b=>`<div class="item"><span>${esc(b.name)} <small>${b.date}</small></span><span>${rp(b.amt)} <button class="x" data-del="${b.id}" aria-label="Hapus">✕</button></span></div>`).join("");
+}
+
+function renderArchive(){
+  const arc=(S&&S.archive)||[];
+  $("archiveCard").classList.toggle("hide",arc.length===0);
+  $("archiveList").innerHTML=arc.slice().reverse().map((a,ri)=>{
+    const i=arc.length-1-ri;
+    return `<div class="archive-row"><span>${a.period} <small style="color:var(--mu);font-family:var(--mono)">· Free akhir ${rp(a.freeAtEnd)}</small></span>
+    <span class="ar-actions"><button class="excel-btn" data-arcdl="${i}">Unduh</button><button class="g x" data-arcdel="${i}">Hapus</button></span></div>`;
+  }).join("");
+}
+
+/* ---- Input harian ---- */
+$("days").addEventListener("change",ev=>{
+  const t=ev.target,d=t.dataset.d;if(!d)return;
+  S.days[d]=S.days[d]||{};S.days[d][t.dataset.k]=t.value===""?"":Math.max(0,+t.value);save();
+  const r=calc().rows.find(x=>x.dt===d);
+  if(r.over)show($("alert"),`⚠ Pengeluaran melebihi jatah ${rp(r.over)}. Jatah besok akan dipotong, ayo lebih hemat!`);else $("alert").style.display="none";
+  render();
+});
+
+/* ---- Mulai / mulai bulan baru ---- */
+$("go").onclick=()=>{
+  const b=+$("bal").value;
+  if(!(b>0)){alert("Masukkan nominal uang sekarang.");return}
+  const bgChoice=S?S.bgChoice:'default';
+  const freeBank=S?(S.freeBank||0):0;
+  const archive=S?(S.archive||[]):[];
+  const start=S&&S.pendingStart?S.pendingStart:iso(new Date());
+  S={start,balance:b,days:{},buy:[],freeBank,archive,bgChoice};
+  save();render();
+};
+
+/* ---- Beli pakai Uang Free ---- */
+$("buy").onclick=()=>{
+  const name=$("bn").value.trim(),amt=+$("ba").value;
+  if(!name||!(amt>0)){alert("Isi nama barang dan harga.");return}
+  if(amt>calc().free){show($("alert"),"Uang Free tidak cukup untuk membeli "+name+".");return}
+  if(!S.buy) S.buy=[];
+  S.buy.push({id:Date.now(),name,amt,date:iso(new Date())});save();
+  $("bn").value="";$("ba").value="";$("alert").style.display="none";render();
+};
+$("buys").addEventListener("click",ev=>{
+  const id=ev.target.dataset.del;if(!id)return;
+  S.buy=S.buy.filter(b=>b.id!=id);save();render();
+});
+
+/* ---- Ekspor excel (reusable) ---- */
+function buildAndDownload(periodLabel,rows,buyList,freeAtEnd,balAtEnd){
+  const exportData=[];
+  exportData.push(["REKAPITULASI KEUANGAN HARIAN"]);
+  exportData.push(["Periode",periodLabel]);
+  exportData.push(["Uang Free",freeAtEnd]);
+  exportData.push(["Sisa Saldo",balAtEnd]);
+  exportData.push([]);
+  exportData.push(["TANGGAL","MAKAN SIANG (RP)","MAKAN MALAM (RP)","JAJAN (RP)","TOTAL HARIAN (RP)","STATUS / JATAH EFEKTIF"]);
+  rows.forEach(r=>{
+    const e=r.e||{};const l=+e.l||0,d=+e.d||0,j=+e.j||0,total=l+d+j;
+    let statusText=`Jatah Eff: Rp ${r.eff.toLocaleString('id-ID')}`;
+    if(r.e){
+      statusText=r.over?`Over Budget (+Rp ${r.over.toLocaleString('id-ID')}, besok dipotong)`:`Hemat (+Rp ${r.left.toLocaleString('id-ID')}, besok nambah)`;
+    }
+    exportData.push([r.dt,l,d,j,total,statusText]);
+  });
+  if(buyList&&buyList.length>0){
+    exportData.push([]);
+    exportData.push(["DAFTAR PEMBELIAN DENGAN UANG FREE"]);
+    exportData.push(["TANGGAL","NAMA BARANG","HARGA (RP)"]);
+    buyList.forEach(b=>exportData.push([b.date,b.name,b.amt]));
+  }
+  const worksheet=XLSX.utils.aoa_to_sheet(exportData);
+  const workbook=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook,worksheet,"Laporan Keuangan");
+  worksheet['!cols']=[{wch:15},{wch:18},{wch:18},{wch:15},{wch:18},{wch:35}];
+  XLSX.writeFile(workbook,`Keuangan_${periodLabel}.xlsx`);
+}
+function downloadCurrent(){
+  if(!S||!S.start){alert("Belum ada data untuk diunduh.");return}
+  const c=calc();
+  buildAndDownload(S.start.substring(0,7),c.rows,S.buy,c.free,c.bal);
+}
+$("downloadExcel").onclick=downloadCurrent;
+$("downloadExcelDone").onclick=downloadCurrent;
+
+/* ---- Lanjut ke bulan berikutnya (arsipkan, bawa Uang Free) ---- */
+$("nextMonth").onclick=()=>{
+  if(!confirm("Pastikan sudah unduh data bulan ini. Lanjut ke bulan berikutnya? Data bulan ini akan dipindah ke Riwayat.")) return;
+  const c=calc();
+  if(!S.archive) S.archive=[];
+  S.archive.push({period:S.start.substring(0,7),rows:c.rows,buy:S.buy||[],freeAtEnd:c.free,balAtEnd:c.bal});
+  const pendingStart=firstOfNextMonth(S.start);
+  const bgChoice=S.bgChoice;
+  S={start:pendingStart,balance:0,days:{},buy:[],freeBank:c.free,archive:S.archive,bgChoice,pendingStart};
+  save();render();
+};
+
+/* ---- Riwayat: unduh / hapus ---- */
+$("archiveList").addEventListener("click",ev=>{
+  const dl=ev.target.dataset.arcdl, del=ev.target.dataset.arcdel;
+  if(dl!==undefined){
+    const a=S.archive[+dl];
+    buildAndDownload(a.period,a.rows,a.buy,a.freeAtEnd,a.balAtEnd);
+  }
+  if(del!==undefined){
+    if(confirm("Hapus riwayat bulan ini dari daftar? Uang Free yang sudah dibawa tidak akan berubah.")){
+      S.archive.splice(+del,1);save();renderArchive();
+    }
+  }
+});
+
+/* ---- Reset total ---- */
+$("reset").onclick=()=>{
+  if(confirm("Hapus SEMUA data termasuk riwayat dan Uang Free? Tindakan ini tidak bisa dibatalkan.")){
+    const bgChoice=S?S.bgChoice:'default';
+    S={start:iso(new Date()),balance:0,days:{},buy:[],freeBank:0,archive:[],bgChoice};
+    try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}
+    render();
+  }
+};
+
+render();
+
+/* ---- particle network backdrop ---- */
+(function(){
+  if(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const cv=$("net"),ctx=cv.getContext("2d");let w,h,pts;
+  function size(){w=cv.width=innerWidth;h=cv.height=innerHeight}
+  function init(){size();const n=Math.min(60,Math.floor(w*h/22000));pts=Array.from({length:n},()=>({x:Math.random()*w,y:Math.random()*h,vx:(Math.random()-.5)*.25,vy:(Math.random()-.5)*.25}))}
+  function step(){
+    if(cv.style.display==='none'){requestAnimationFrame(step);return}
+    ctx.clearRect(0,0,w,h);
+    for(const p of pts){p.x+=p.vx;p.y+=p.vy;if(p.x<0||p.x>w)p.vx*=-1;if(p.y<0||p.y>h)p.vy*=-1}
+    for(let i=0;i<pts.length;i++){
+      ctx.beginPath();ctx.arc(pts[i].x,pts[i].y,1.3,0,7);ctx.fillStyle="rgba(73,232,255,.55)";ctx.fill();
+      for(let j=i+1;j<pts.length;j++){
+        const dx=pts[i].x-pts[j].x, dy=pts[i].y-pts[j].y, d=Math.hypot(dx,dy);
+        if(d<130){ctx.beginPath();ctx.moveTo(pts[i].x,pts[i].y);ctx.lineTo(pts[j].x,pts[j].y);
+          ctx.strokeStyle="rgba(130,170,255,"+(0.14*(1-d/130))+")";ctx.lineWidth=1;ctx.stroke()}
+      }
+    }
+    requestAnimationFrame(step);
+  }
+  init();step();
+  addEventListener("resize",init,{passive:true});
+})();
+</script>
+</body>
+</html>
